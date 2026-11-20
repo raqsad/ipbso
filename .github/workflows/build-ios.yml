@@ -14,6 +14,7 @@ jobs:
           channel: stable
           cache: true
 
+      # Folder ios/ dibuat otomatis oleh Flutter, jadi repo ini cukup berisi lib/, assets/, pubspec.yaml.
       - name: Buat folder iOS
         run: |
           flutter --version
@@ -22,6 +23,7 @@ jobs:
           cp -R ios_gen/ios ios
           rm -rf ios_gen
 
+      # Wajib: izin memutar audio di latar belakang + layar kunci. Nama app di layar utama.
       - name: Atur Info.plist
         run: |
           P=ios/Runner/Info.plist
@@ -34,12 +36,12 @@ jobs:
       - name: Ambil paket
         run: flutter pub get
 
-      - name: Tes logika
+      - name: Tes logika (pembaca file import + pembaca YouTube Music)
         run: |
           dart run test/ytm_test.dart
           dart run test/import_test.dart
 
-      - name: Periksa kode
+      - name: Periksa kode (hanya laporan, tidak menggagalkan build)
         run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.log || true
 
       - name: Build iOS (tanpa tanda tangan)
@@ -54,72 +56,7 @@ jobs:
           zip -qr Berst.ipa Payload
           ls -lh Berst.ipa
 
-      - name: Ringkasan error
-        if: failure()
-        run: |
-          echo "=== BARIS ERROR ==="
-          grep -nE "Error|error:|Exception|Could not|FAILURE|Failed|Version solving|pub get" -A3 build.log 2>/dev/null | head -80 || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Berst-iOS-ipa
-          path: Berst.ipaname: Berst iOS (IPA tanpa tanda tangan)
-on:
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: macos-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Buat folder iOS
-        run: |
-          flutter --version
-          flutter create --platforms=ios --project-name raq_music --org com.berst ios_gen
-          rm -rf ios
-          cp -R ios_gen/ios ios
-          rm -rf ios_gen
-
-      - name: Atur Info.plist
-        run: |
-          P=ios/Runner/Info.plist
-          /usr/libexec/PlistBuddy -c "Delete :UIBackgroundModes" "$P" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" "$P"
-          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string audio" "$P"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Berst" "$P" || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Berst" "$P"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleName Berst" "$P" || /usr/libexec/PlistBuddy -c "Add :CFBundleName string Berst" "$P"
-
-      - name: Ambil paket
-        run: flutter pub get
-
-      - name: Tes logika
-        run: |
-          dart run test/ytm_test.dart
-          dart run test/import_test.dart
-
-      - name: Periksa kode
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.log || true
-
-      - name: Build iOS (tanpa tanda tangan)
-        run: |
-          set -o pipefail
-          flutter build ios --release --no-codesign 2>&1 | tee build.log
-
-      - name: Bungkus jadi IPA
-        run: |
-          mkdir -p Payload
-          cp -R build/ios/iphoneos/Runner.app Payload/Runner.app
-          zip -qr Berst.ipa Payload
-          ls -lh Berst.ipa
-
-      - name: Ringkasan error
+      - name: Ringkasan error (kirim bagian ini kalau build gagal)
         if: failure()
         run: |
           echo "=== BARIS ERROR ==="
@@ -129,3 +66,6 @@ jobs:
         with:
           name: Berst-iOS-ipa
           path: Berst.ipa
+
+
+  
